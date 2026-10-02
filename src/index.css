@@ -220,6 +220,7 @@ img {
 }
 .course-card {
   position: relative;
+  z-index: 1;
   flex-grow: var(--course-grow);
   flex-basis: 0;
   min-width: 0;
@@ -404,18 +405,21 @@ img {
 }
 .course-art-track {
   position: absolute;
+  inset: 0;
   z-index: 2;
-  top: 112px;
-  inset-inline: 0;
   gap: 32px;
   pointer-events: none;
 }
 .course-art-slot {
+  position: relative;
   flex-grow: var(--course-grow);
   flex-basis: 0;
   min-width: 0;
 }
 .course-art-position {
+  position: absolute;
+  top: 112px;
+  inset-inline: 0;
   width: 450px;
   margin: 0 auto;
 }
@@ -621,21 +625,17 @@ img {
     display: none;
   }
   .course-art-track {
-    top: 0;
-    bottom: 0;
     flex-direction: column;
     gap: 16px;
   }
   .course-art-slot {
     flex: none;
     height: 120px;
-    position: relative;
   }
   .course-art-slot.is-active {
     height: 370px;
   }
   .course-art-position {
-    position: absolute;
     top: 82px;
     width: 100%;
   }

@@ -1,11 +1,11 @@
 import {
-  animate,
+  cancelFrame,
+  frame,
   LayoutGroup,
   motion,
-  useMotionValue,
   useReducedMotion,
 } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { courseIllustrations, courses } from "../data/content";
 import type { Course } from "../data/content";
@@ -175,27 +175,73 @@ function ExpandedCourseContent({
 
 function CourseIllustrations({ activeCard }: { activeCard: number }) {
   const reduced = useReducedMotion();
-  const opacity = useMotionValue(1);
-  const previousCard = useRef(activeCard);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const visibleCards = useRef(new Set([activeCard]));
 
-  useEffect(() => {
-    if (reduced) {
-      previousCard.current = activeCard;
-      opacity.set(1);
-      return;
-    }
-    if (previousCard.current === activeCard) return;
-    previousCard.current = activeCard;
-    // Keep the current opacity when rapid clicks redirect the shared logos.
-    const fade = animate(opacity, [opacity.get(), 0.55, 1], {
-      duration: COURSE_TRANSITION_DURATION,
-      times: [0, 0.5, 1],
-      ease: [0.4, 0, 0.2, 1],
-    });
-    return () => fade.stop();
-  }, [activeCard, opacity, reduced]);
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    const row = track?.parentElement;
+    if (!track || !row) return;
+    const cards = Array.from(row.querySelectorAll<HTMLElement>(".course-card"));
+    if (reduced) visibleCards.current = new Set([activeCard]);
+    else visibleCards.current.add(activeCard);
+    let settleTimer: number;
+
+    const updateClip = () => {
+      const origin = track.getBoundingClientRect();
+      const paths = cards.flatMap((card, index) => {
+        if (!visibleCards.current.has(index)) return [];
+        const bounds = card.getBoundingClientRect();
+        const left = bounds.left - origin.left;
+        const top = bounds.top - origin.top;
+        const right = bounds.right - origin.left;
+        const bottom = bounds.bottom - origin.top;
+        const radius = Math.min(32, bounds.width / 2, bounds.height / 2);
+        return [
+          `M ${left + radius} ${top} H ${right - radius}
+          A ${radius} ${radius} 0 0 1 ${right} ${top + radius}
+          V ${bottom - radius} A ${radius} ${radius} 0 0 1 ${right - radius} ${bottom}
+          H ${left + radius} A ${radius} ${radius} 0 0 1 ${left} ${bottom - radius}
+          V ${top + radius} A ${radius} ${radius} 0 0 1 ${left + radius} ${top} Z`,
+        ];
+      });
+      track.style.clipPath = `path("${paths.join(" ").replace(/\s+/g, " ")}")`;
+    };
+
+    // One moving group stays visible in both the departing and arriving card.
+    // Follow the rendered card bounds so gaps and other cards stay masked.
+    const syncClip = () => {
+      updateClip();
+      frame.postRender(updateClip, true);
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(
+        () => {
+          cancelFrame(updateClip);
+          visibleCards.current = new Set([activeCard]);
+          updateClip();
+        },
+        (reduced ? 0 : COURSE_TRANSITION_DURATION * 1000) + 100,
+      );
+    };
+    syncClip();
+    const observer = new ResizeObserver(syncClip);
+    cards.forEach((card) => observer.observe(card));
+    window.addEventListener("resize", syncClip);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncClip);
+      window.clearTimeout(settleTimer);
+      cancelFrame(updateClip);
+    };
+  }, [activeCard, reduced]);
+
   return (
-    <div className="course-art-track flex" aria-hidden="true">
+    <div
+      ref={trackRef}
+      className="course-art-track flex"
+      style={{ clipPath: "inset(0 100% 100% 0)" }}
+      aria-hidden="true"
+    >
       {courses.map((course, index) => (
         <div
           key={course.id}
@@ -211,14 +257,11 @@ function CourseIllustrations({ activeCard }: { activeCard: number }) {
                 ease,
               }}
             >
-              <motion.div
-                className="course-art-group flex items-center justify-center"
-                style={{ opacity }}
-              >
+              <div className="course-art-group flex items-center justify-center">
                 {courseIllustrations.map((image) => (
                   <img key={image.src} src={image.src} alt="" />
                 ))}
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </div>
