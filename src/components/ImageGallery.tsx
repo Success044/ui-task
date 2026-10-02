@@ -46,7 +46,7 @@ export function ImageGallery() {
     glideRef.current = null;
   }
 
-  function beginDrag(event: PointerEvent<HTMLDivElement>) {
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType !== "mouse" || event.button !== 0) return;
     stopGlide();
     const track = event.currentTarget;
@@ -62,11 +62,12 @@ export function ImageGallery() {
     setDragging(true);
   }
 
-  function movePointer(event: PointerEvent<HTMLDivElement>) {
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (drag && drag.pointer === event.pointerId) {
       const now = performance.now();
-      const velocity = (drag.lastX - event.clientX) / Math.max(16, now - drag.lastTime);
+      const velocity =
+        (drag.lastX - event.clientX) / Math.max(16, now - drag.lastTime);
       drag.velocity = drag.velocity * 0.35 + velocity * 0.65;
       drag.lastX = event.clientX;
       drag.lastTime = now;
@@ -75,7 +76,7 @@ export function ImageGallery() {
     }
   }
 
-  function endDrag(event: PointerEvent<HTMLDivElement>) {
+  function handlePointerEnd(event: PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (!drag || drag.pointer !== event.pointerId) return;
     const track = event.currentTarget;
@@ -88,20 +89,32 @@ export function ImageGallery() {
       Math.abs(drag.lastX - drag.startX) < 3 ||
       performance.now() - drag.lastTime > 150 ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) return;
+    )
+      return;
 
-    // Give short drags a gentle coast, with more travel for faster flicks.
+    // Carry mouse-drag momentum into the final scroll position.
     const direction = Math.sign(drag.velocity || drag.startX - drag.lastX);
-    const distance = Math.min(track.clientWidth * 0.65, Math.max(120, Math.abs(drag.velocity) * 320));
-    const target = Math.max(0, Math.min(track.scrollWidth - track.clientWidth, track.scrollLeft + direction * distance));
+    const distance = Math.min(
+      track.clientWidth * 0.65,
+      Math.max(120, Math.abs(drag.velocity) * 320),
+    );
+    const target = Math.max(
+      0,
+      Math.min(
+        track.scrollWidth - track.clientWidth,
+        track.scrollLeft + direction * distance,
+      ),
+    );
     glideRef.current = animate(track.scrollLeft, target, {
       duration: 0.95,
       ease: [0.16, 1, 0.3, 1],
-      onUpdate: (value) => { track.scrollLeft = value; },
+      onUpdate: (value) => {
+        track.scrollLeft = value;
+      },
     });
   }
 
-  function handleKeys(event: KeyboardEvent<HTMLDivElement>) {
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
     stopGlide();
@@ -124,17 +137,17 @@ export function ImageGallery() {
           role="region"
           aria-label="Project images. Drag, swipe, or use the left and right arrow keys."
           tabIndex={0}
-          onPointerDown={beginDrag}
-          onPointerMove={movePointer}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
           onLostPointerCapture={() => {
             dragRef.current = null;
             setDragging(false);
           }}
           onScroll={updateProgress}
           onWheel={stopGlide}
-          onKeyDown={handleKeys}
+          onKeyDown={handleKeyDown}
         >
           {gallerySlides.map((image, index) => (
             <img

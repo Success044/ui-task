@@ -3,7 +3,7 @@ import type { MotionValue } from 'motion/react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { COURSE_TRANSITION_DURATION, COURSE_TRANSITION_EASE } from '../data/motion'
 
-const colors = { active: '#C33241', inactive: '#F9EBEC' }
+const CARD_COLORS = { active: '#C33241', inactive: '#F9EBEC' }
 
 type ColorWipe = {
   inside: ColorPaint
@@ -33,8 +33,7 @@ function CircularColorLayer({ wipe }: { wipe: ColorWipe }) {
       const layer = layerRef.current
       if (!layer) return
 
-      // Layout projection stretches the card horizontally. Compensate the mask
-      // so its two radii are equal on screen throughout the resize.
+      // Counter Motion's layout scaling so the wipe remains circular.
       const bounds = layer.getBoundingClientRect()
       const style = getComputedStyle(layer)
       const width = Number.parseFloat(style.width)
@@ -47,7 +46,7 @@ function CircularColorLayer({ wipe }: { wipe: ColorWipe }) {
       layer.style.clipPath = `ellipse(${radiusX}px ${radiusY}px at ${x}% ${100 - x}%)`
     }
     updateMask()
-    // Measure after projection renders, so the compensation uses this frame's scale.
+    // Refresh the mask after Motion applies its layout transform.
     frame.postRender(updateMask, true)
     return () => cancelFrame(updateMask)
   }, [wipe])
@@ -71,12 +70,12 @@ function ColorSurface({ paint }: { paint: ColorPaint }) {
 export function CourseCardBackground({ active }: { active: boolean }) {
   const reduced = useReducedMotion()
   const [scene, setScene] = useState<ColorScene>({
-    active, reduced, paint: { color: active ? colors.active : colors.inactive },
+    active, reduced, paint: { color: active ? CARD_COLORS.active : CARD_COLORS.inactive },
   })
 
-  // Adjust to the new selection before children paint, without an extra effect render.
+  // Prepare the next color state before paint.
   if (scene.active !== active || scene.reduced !== reduced) {
-    const color = active ? colors.active : colors.inactive
+    const color = active ? CARD_COLORS.active : CARD_COLORS.inactive
     const shouldAnimate = scene.active !== active && !reduced
     setScene({
       active, reduced,
@@ -92,8 +91,7 @@ export function CourseCardBackground({ active }: { active: boolean }) {
     const paint = scene.paint
     const wipe = paint.wipe
     if (!wipe) return
-    // The previous effect freezes its mask before this one starts. Nested
-    // snapshots preserve interrupted colors without a jump or a flat-color flash.
+    // Retain the current paint tree when a transition is interrupted.
     const animation = animate(wipe.radius, wipe.expanding ? 150 : 0, {
       duration: COURSE_TRANSITION_DURATION,
       ease: COURSE_TRANSITION_EASE,

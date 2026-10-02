@@ -18,7 +18,7 @@ import {
   COURSE_TRANSITION_EASE,
 } from "../data/motion";
 
-const ease = COURSE_TRANSITION_EASE;
+const courseTransitionEase = COURSE_TRANSITION_EASE;
 const ACTIVE_GROW = 592 / 280;
 
 function cardStyle(active: boolean): CSSProperties {
@@ -75,7 +75,7 @@ function CourseCard({
   const stacked = useStackedCourses();
   const transition = {
     duration: reduced ? 0 : COURSE_TRANSITION_DURATION,
-    ease,
+    ease: courseTransitionEase,
   };
 
   return (
@@ -135,7 +135,7 @@ function ExpandedCourseContent({
     const position = positionRef.current;
     const card = position?.parentElement;
     if (!active || !position || !card) return;
-    // Preserve the link's starting position as the card narrows beneath it.
+    // Hold the link in place while its card collapses.
     const observer = new ResizeObserver(() =>
       setExpandedLeft(position.offsetLeft),
     );
@@ -208,8 +208,7 @@ function CourseIllustrations({ activeCard }: { activeCard: number }) {
       track.style.clipPath = `path("${paths.join(" ").replace(/\s+/g, " ")}")`;
     };
 
-    // One moving group stays visible in both the departing and arriving card.
-    // Follow the rendered card bounds so gaps and other cards stay masked.
+    // Keep the artwork clipped to the two cards during the handoff.
     const syncClip = () => {
       updateClip();
       frame.postRender(updateClip, true);
@@ -254,7 +253,7 @@ function CourseIllustrations({ activeCard }: { activeCard: number }) {
               className="course-art-position"
               transition={{
                 duration: reduced ? 0 : COURSE_TRANSITION_DURATION,
-                ease,
+                ease: courseTransitionEase,
               }}
             >
               <div className="course-art-group flex items-center justify-center">

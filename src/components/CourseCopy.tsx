@@ -26,8 +26,7 @@ export function CourseCopy({
   useEffect(() => {
     const anchor = anchorRef.current;
     if (!active || !anchor) return;
-    // Keep the outgoing horizontal copy at its last width while it collapses,
-    // so its heading and description cannot rewrap on the click frame.
+    // Freeze the expanded width during collapse to prevent text reflow.
     const observer = new ResizeObserver(() =>
       setExpandedWidth(anchor.clientWidth),
     );
